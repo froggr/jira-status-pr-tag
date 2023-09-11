@@ -145,6 +145,7 @@ async function run(): Promise<void> {
       }
     }
   } catch (error) {
+    core.info(`Error: ${error}`)
     if (error instanceof Error) core.setFailed(error.message)
   }
 }
