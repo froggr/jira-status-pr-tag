@@ -38,7 +38,7 @@ async function run(): Promise<void> {
         return {
           pull: pr.number,
           pullLabels: pr.labels.map(l => l.name),
-          ticket: regex.exec(`${pr.title}${pr.body}`)?.shift()
+          ticket: regex.exec(`(?i)${pr.title}`)?.shift()
         }
       })
       .filter((v: {ticket: string | undefined}) => v.ticket !== undefined)
@@ -47,7 +47,7 @@ async function run(): Promise<void> {
     core.info(`tickets: ${JSON.stringify(pullsContainingTicket)}`)
 
     // use the jira api to create a query to list all tickets in the list of tickets
-    const jql = `key in (${pullsContainingTicket
+    const jql = `key in (${pullsContainingTicket.toUpperCase()
       .map((v: {ticket: string | undefined}) => v.ticket)
       .join(',')})`
 
