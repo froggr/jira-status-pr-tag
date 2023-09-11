@@ -30,7 +30,7 @@ async function run(): Promise<void> {
     })
 
     const regexSource = core.getInput('ticket-regex')
-    const regex = new RegExp(regexSource)
+    const regex = new RegExp(regexSource, 'i')
 
     // map the PRs to the ticket keys in the title or body of the PR (if any) and filter out any undefined values (i.e. no matches)
     const pullsContainingTicket = response.data
@@ -38,7 +38,7 @@ async function run(): Promise<void> {
         return {
           pull: pr.number,
           pullLabels: pr.labels.map(l => l.name),
-          ticket: regex.exec(`(?i)${pr.title}`)?.shift()
+          ticket : (regex.exec(`${pr.title}${pr.body}`)?.shift())?.toUpperCase()
         }
       })
       .filter((v: {ticket: string | undefined}) => v.ticket !== undefined)
@@ -48,7 +48,7 @@ async function run(): Promise<void> {
 
     // use the jira api to create a query to list all tickets in the list of tickets
     const jql = `key in (${pullsContainingTicket
-      .map((v: {ticket: string | undefined}) => v.ticket?.toUpperCase())
+      .map((v: {ticket: string | undefined}) => v.ticket)
       .join(',')})`
 
     // log the jql
@@ -74,6 +74,8 @@ async function run(): Promise<void> {
     // join the ticket statuses with the tickets from the PRs on the ticket key
     const pullWithTicketData = pullsContainingTicket.map(ticket => {
       const ticketStatus = ticketData.find(v => v.ticket === ticket.ticket)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any@ts-nocheck
+      core.debug(ticketStatus);
       return {
         pull: ticket.pull,
         ticket: ticket.ticket,
@@ -97,6 +99,8 @@ async function run(): Promise<void> {
     const pullWithLabelData = pullWithTicketData.map(ticket => {
       // replace spaces with underscores and lowercase the status
       const statusClean = ticket.ticketStatus?.toLowerCase().replace(/\s/g, '_')
+      core.debug(JSON.stringify(ticket));
+      core.debug(statusClean)
       // filter out any existing jira labels and add the new jira label
       let newLabels = ticket.prLabels
         .filter(l => !l.startsWith(`${prefix}:`))
@@ -134,6 +138,11 @@ async function run(): Promise<void> {
       core.info(`New labels: ${labelData.newLabels}`)
       core.info(`Old labels: ${labelData.oldLabels}`)
       try {
+        await octokit.rest.issues.removeAllLabels({
+          owner: github.context.repo.owner,
+          repo: github.context.repo.repo,
+          issue_number: labelData.pull
+        })
         await octokit.rest.issues.addLabels({
           owner: github.context.repo.owner,
           repo: github.context.repo.repo,
@@ -145,9 +154,9 @@ async function run(): Promise<void> {
         core.info(`Error: ${error}`)
       }
     }
-  } catch (error) {
+  } catch (error:any) {
     core.info('oh no');
-    core.info('error.message');
+    core.info(error.message);
     core.info(`Error: ${error}`)
     if (error instanceof Error) core.setFailed(error.message)
   }

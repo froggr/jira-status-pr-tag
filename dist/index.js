@@ -63,15 +63,15 @@ function run() {
                 password: core.getInput('jira-password')
             });
             const regexSource = core.getInput('ticket-regex');
-            const regex = new RegExp(regexSource);
+            const regex = new RegExp(regexSource, 'i');
             // map the PRs to the ticket keys in the title or body of the PR (if any) and filter out any undefined values (i.e. no matches)
             const pullsContainingTicket = response.data
                 .map(pr => {
-                var _a;
+                var _a, _b;
                 return {
                     pull: pr.number,
                     pullLabels: pr.labels.map(l => l.name),
-                    ticket: (_a = regex.exec(`${pr.title}${pr.body}`)) === null || _a === void 0 ? void 0 : _a.shift()
+                    ticket: (_b = ((_a = regex.exec(`${pr.title}${pr.body}`)) === null || _a === void 0 ? void 0 : _a.shift())) === null || _b === void 0 ? void 0 : _b.toUpperCase()
                 };
             })
                 .filter((v) => v.ticket !== undefined);
@@ -83,8 +83,10 @@ function run() {
                 .join(',')})`;
             // log the jql
             core.info(`jql: ${jql}`);
+            core.debug('querying JIRA');
             // execute the query
             const jiraTickets = yield jiraApi.searchJira(jql);
+            core.debug('mapping issues');
             // extract the ticket status and labels from the response
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const ticketData = jiraTickets.issues.map((issue) => {
@@ -99,6 +101,8 @@ function run() {
             // join the ticket statuses with the tickets from the PRs on the ticket key
             const pullWithTicketData = pullsContainingTicket.map(ticket => {
                 const ticketStatus = ticketData.find(v => v.ticket === ticket.ticket);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any@ts-nocheck
+                core.debug(ticketStatus);
                 return {
                     pull: ticket.pull,
                     ticket: ticket.ticket,
@@ -119,6 +123,8 @@ function run() {
                 var _a;
                 // replace spaces with underscores and lowercase the status
                 const statusClean = (_a = ticket.ticketStatus) === null || _a === void 0 ? void 0 : _a.toLowerCase().replace(/\s/g, '_');
+                core.debug(JSON.stringify(ticket));
+                core.debug(statusClean);
                 // filter out any existing jira labels and add the new jira label
                 let newLabels = ticket.prLabels
                     .filter(l => !l.startsWith(`${prefix}:`))
@@ -145,6 +151,11 @@ function run() {
                 core.info(`New labels: ${labelData.newLabels}`);
                 core.info(`Old labels: ${labelData.oldLabels}`);
                 try {
+                    yield octokit.rest.issues.removeAllLabels({
+                        owner: github.context.repo.owner,
+                        repo: github.context.repo.repo,
+                        issue_number: labelData.pull
+                    });
                     yield octokit.rest.issues.addLabels({
                         owner: github.context.repo.owner,
                         repo: github.context.repo.repo,
@@ -159,6 +170,9 @@ function run() {
             }
         }
         catch (error) {
+            core.info('oh no');
+            core.info(error.message);
+            core.info(`Error: ${error}`);
             if (error instanceof Error)
                 core.setFailed(error.message);
         }
