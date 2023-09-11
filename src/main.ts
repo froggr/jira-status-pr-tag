@@ -47,16 +47,17 @@ async function run(): Promise<void> {
     core.info(`tickets: ${JSON.stringify(pullsContainingTicket)}`)
 
     // use the jira api to create a query to list all tickets in the list of tickets
-    const jql = `key in (${pullsContainingTicket.toUpperCase()
-      .map((v: {ticket: string | undefined}) => v.ticket)
+    const jql = `key in (${pullsContainingTicket
+      .map((v: {ticket: string | undefined}) => v.ticket?.toUpperCase())
       .join(',')})`
 
     // log the jql
     core.info(`jql: ${jql}`)
-
+    core.debug('querying JIRA');
     // execute the query
     const jiraTickets = await jiraApi.searchJira(jql)
 
+    core.debug('mapping issues')
     // extract the ticket status and labels from the response
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ticketData: any[] = jiraTickets.issues.map((issue: any) => {
