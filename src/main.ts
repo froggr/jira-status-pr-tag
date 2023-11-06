@@ -137,6 +137,13 @@ async function run(): Promise<void> {
       core.info(`Adding labels to PR ${labelData.pull}`)
       core.info(`New labels: ${labelData.newLabels}`)
       core.info(`Old labels: ${labelData.oldLabels}`)
+
+      let difference = labelData.newLabels.filter((x: any) => !labelData.oldLabels.includes(x));
+      if(difference?.length == 0) {
+        core.info(`Labels Match - Skipping!`);
+        continue;
+      }
+
       try {
         await octokit.rest.issues.removeAllLabels({
           owner: github.context.repo.owner,
