@@ -150,6 +150,12 @@ function run() {
                 core.info(`Adding labels to PR ${labelData.pull}`);
                 core.info(`New labels: ${labelData.newLabels}`);
                 core.info(`Old labels: ${labelData.oldLabels}`);
+                let difference = labelData.newLabels.filter((x) => !labelData.oldLabels.includes(x));
+                core.info(difference);
+                if ((difference === null || difference === void 0 ? void 0 : difference.length) == 0) {
+                    core.info(`Labels Match - Skipping!`);
+                    continue;
+                }
                 try {
                     yield octokit.rest.issues.removeAllLabels({
                         owner: github.context.repo.owner,
