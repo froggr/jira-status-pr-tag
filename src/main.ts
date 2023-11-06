@@ -138,7 +138,7 @@ async function run(): Promise<void> {
       core.info(`New labels: ${labelData.newLabels}`)
       core.info(`Old labels: ${labelData.oldLabels}`)
 
-      let difference = labelData.newLabels.filter((x: any) => !labelData.oldLabels.includes(x));
+      let difference: any = labelData.newLabels.filter((x: any) => !labelData.oldLabels.includes(x));
       core.info(difference);
       if(difference?.length == 0) {
         core.info(`Labels Match - Skipping!`);
